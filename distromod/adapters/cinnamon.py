@@ -5,14 +5,7 @@ from __future__ import annotations
 import os
 from typing import List
 
-from distromod.adapters.base import (
-    DesktopAdapter,
-    FEATURE_CURSOR_THEME,
-    FEATURE_FONT,
-    FEATURE_GTK_THEME,
-    FEATURE_ICON_THEME,
-    FEATURE_WALLPAPER,
-)
+from distromod.adapters.base import DesktopAdapter
 from distromod.adapters.gsettings_common import GSettingsMixin
 
 
@@ -38,10 +31,4 @@ class CinnamonAdapter(GSettingsMixin, DesktopAdapter):
         return "cinnamon" in desktop or "cinnamon" in session
 
     def get_supported_features(self) -> List[str]:
-        return [
-            FEATURE_GTK_THEME,
-            FEATURE_ICON_THEME,
-            FEATURE_CURSOR_THEME,
-            FEATURE_WALLPAPER,
-            FEATURE_FONT,
-        ]
+        return self._gsettings_features()

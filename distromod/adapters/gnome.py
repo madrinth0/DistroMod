@@ -5,18 +5,10 @@ from __future__ import annotations
 import os
 from typing import List
 
-from distromod.adapters.base import (
-    DesktopAdapter,
-    FEATURE_COLOR_SCHEME,
-    FEATURE_CURSOR_THEME,
-    FEATURE_FONT,
-    FEATURE_GTK_THEME,
-    FEATURE_ICON_THEME,
-    FEATURE_WALLPAPER,
-)
+from distromod.adapters.base import DesktopAdapter
 from distromod.adapters.gsettings_common import GSettingsMixin
 
-_GNOME_DESKTOPS = ("gnome", "ubuntu", "unity", "pop", "pop:gnome", "budgie")
+_GNOME_DESKTOPS = ("gnome", "ubuntu", "unity", "pop", "pop:gnome")
 
 
 class GnomeAdapter(GSettingsMixin, DesktopAdapter):
@@ -35,11 +27,4 @@ class GnomeAdapter(GSettingsMixin, DesktopAdapter):
         return bool(os.environ.get("GNOME_SHELL_SESSION_MODE"))
 
     def get_supported_features(self) -> List[str]:
-        return [
-            FEATURE_GTK_THEME,
-            FEATURE_ICON_THEME,
-            FEATURE_CURSOR_THEME,
-            FEATURE_WALLPAPER,
-            FEATURE_FONT,
-            FEATURE_COLOR_SCHEME,
-        ]
+        return self._gsettings_features()

@@ -7,15 +7,22 @@ backups so you can always roll back.
 
 ## Features
 
-- **Multi-environment support**: GNOME, KDE Plasma, Hyprland, XFCE, Cinnamon,
-  MATE, LXQt, plus a generic X11/Wayland fallback.
+- **Broad environment support**: KDE Plasma, GNOME, COSMIC, Deepin (DDE),
+  Budgie, Pantheon, Cinnamon, MATE, XFCE, LXQt, LXDE, plus the Hyprland, Sway,
+  niri, Wayfire and i3/Openbox window managers, and a generic X11/Wayland
+  fallback.
 - **Automatic detection** of your desktop environment and session type; only
   supported options are offered.
-- **Customization** of GTK themes, icon themes, cursor themes, fonts,
-  wallpapers and colour schemes.
+- **Customization** of GTK themes, icon themes, cursor themes (and sizes),
+  fonts, wallpapers, colour schemes and (on KDE) the Qt/Kvantum widget theme.
+- **Capability-aware**: adapters advertise only the features their environment
+  actually supports, and GSettings adapters probe installed schemas before
+  offering colour-scheme or cursor-size control.
 - **Presets**: export/import your setup as portable, validated JSON.
 - **Automatic backups**: every change snapshots the affected config files first;
   restore any snapshot with a single command.
+- **Diagnostics**: `distromod doctor` shows the detected environment, the chosen
+  adapter and which helper tools are present; `status --json` is script-friendly.
 - **No root required**: everything runs at the user level.
 - **Safety**: all theme names and paths are validated before use; config writes
   are atomic and format-preserving.
@@ -27,9 +34,10 @@ backups so you can always roll back.
 - Python 3.10+
 - A supported desktop environment (or any X11/Wayland session)
 - Optional helper tools are used when present and gracefully skipped when not:
-  `gsettings`, `xfconf-query`, `kwriteconfig6`/`kreadconfig6`,
-  `plasma-apply-*`, `hyprctl`, `swww`, `feh`, `xwallpaper`, `nitrogen`,
-  `hsetroot`, `fc-list`.
+  `gsettings`/`dconf`, `xfconf-query`, `kwriteconfig6`/`kreadconfig6`,
+  `plasma-apply-*`, `hyprctl`/`hyprpaper`, `swaybg`/`swww`, `niri`,
+  `cosmic-bg`, `pcmanfm`/`pcmanfm-qt`, `feh`, `xwallpaper`, `nitrogen`,
+  `hsetroot`, `fc-list`. Run `distromod doctor` to see what is available.
 
 ## Installation
 
@@ -70,6 +78,8 @@ sudo install -Dm755 dist/distromod /usr/local/bin/distromod
 
 ```bash
 distromod status
+distromod status --json   # machine-readable
+distromod doctor          # environment + helper-tool diagnostics
 ```
 
 ### Themes, icons, cursors
@@ -84,6 +94,14 @@ distromod icons set Papirus
 
 distromod cursor list
 distromod cursor set Bibata
+distromod cursor set Bibata --size 48   # theme + size
+distromod cursor size                   # show current size
+distromod cursor size 48                # change size only
+
+# Qt/Kvantum widget theme (KDE)
+distromod qt list
+distromod qt current
+distromod qt set Kvantum
 ```
 
 ### Wallpaper
@@ -142,12 +160,18 @@ written using the native mechanism for that environment:
 
 | Environment | Mechanism |
 |---|---|
+| KDE Plasma | `kdeglobals`, `kcminputrc`, `Kvantum/kvantum.kvconfig`, `plasma-apply-*`, GTK `settings.ini` |
 | GNOME | `gsettings` (dconf) |
-| KDE Plasma | `kdeglobals`, `kcminputrc`, `plasma-apply-*`, GTK `settings.ini` |
-| Hyprland | GTK `settings.ini`, `hyprpaper` / `swww` |
-| XFCE | `xfconf-query` |
+| COSMIC | RON config under `~/.config/cosmic/` + GTK `settings.ini` |
+| Deepin (DDE) | `gsettings` schema `com.deepin.dde.appearance` |
+| Budgie / Pantheon | `gsettings` (GNOME schemas) |
 | Cinnamon / MATE | `gsettings` with their own schemas |
-| LXQt | `lxqt.conf` + GTK `settings.ini` |
+| XFCE | `xfconf-query` |
+| LXQt | `lxqt.conf` + GTK `settings.ini`, `pcmanfm-qt` wallpaper |
+| LXDE | GTK `settings.ini`, PCManFM wallpaper |
+| Hyprland | GTK `settings.ini`, `hyprpaper` / `swww` |
+| Sway / niri / Wayfire | GTK `settings.ini`, `swaybg` / `swww` / `wf-shell.ini` |
+| i3 / Openbox | GTK `settings.ini`, `feh` / `nitrogen` / `xwallpaper` |
 | Generic X11/Wayland | GTK `settings.ini`, common wallpaper tools |
 
 ### Files and directories
@@ -160,16 +184,26 @@ written using the native mechanism for that environment:
 
 ## Supported environments
 
-| Environment | Themes | Icons | Cursors | Fonts | Wallpaper | Colour scheme |
-|---|---|---|---|---|---|---|
-| GNOME | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| KDE Plasma | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Hyprland | ✓ | ✓ | ✓ | ✓ | ✓ | – |
-| XFCE | ✓ | ✓ | ✓ | ✓ | ✓ | – |
-| Cinnamon | ✓ | ✓ | ✓ | ✓ | ✓ | – |
-| MATE | ✓ | ✓ | ✓ | ✓ | ✓ | – |
-| LXQt | ✓ | ✓ | ✓ | ✓ | – | – |
-| Generic X11/Wayland | ✓ | ✓ | ✓ | ✓ | ✓ | – |
+| Environment | Themes | Icons | Cursors | Cursor size | Fonts | Wallpaper | Colour scheme | Qt/Kvantum |
+|---|---|---|---|---|---|---|---|---|
+| KDE Plasma | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| GNOME | ✓ | ✓ | ✓ | ✓ᵍ | ✓ | ✓ | ✓ | – |
+| COSMIC | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ (light/dark) | – |
+| Deepin (DDE) | ✓ | ✓ | ✓ | – | ✓ | ✓ | – | – |
+| Budgie | ✓ | ✓ | ✓ | ✓ᵍ | ✓ | ✓ | ✓ᵍ | – |
+| Pantheon | ✓ | ✓ | ✓ | ✓ᵍ | ✓ | ✓ | ✓ᵍ | – |
+| Cinnamon | ✓ | ✓ | ✓ | ✓ᵍ | ✓ | ✓ | ✓ᵍ | – |
+| MATE | ✓ | ✓ | ✓ | ✓ᵍ | ✓ | ✓ | ✓ᵍ | – |
+| XFCE | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | – | – |
+| LXQt | ✓ | ✓ | ✓ | – | ✓ | ✓ | – | – |
+| LXDE | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | – |
+| Hyprland | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | – |
+| Sway / niri / Wayfire | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | – |
+| i3 / Openbox | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | – |
+| Generic X11/Wayland | ✓ | ✓ | ✓ | – | ✓ | ✓ | ✓ | – |
+
+✓ᵍ = offered only when the installed GSettings schema provides the key (this is
+probed automatically).
 
 ## Development
 
@@ -201,9 +235,18 @@ distromod/
 
 - Some changes require the desktop to be restarted or re-logged-in to fully
   apply; `distromod` asks the running desktop to reload where it can.
-- On GNOME/MATE/Cinnamon, settings are stored in dconf; the backup snapshots the
-  dconf user database rather than individual text files.
+- On GNOME/MATE/Cinnamon/Budgie/Pantheon/Deepin, settings are stored in dconf;
+  the backup snapshots the dconf user database rather than individual text files.
 - GTK4 applications may need a theme portal to pick up some changes.
+- The COSMIC and Deepin adapters are provided on a best-effort basis because
+  those desktops use newer, less-documented configuration formats; the KDE,
+  GNOME, XFCE and GTK-based paths are the most exercised.
+- KDE's `plasma-apply-*` tools talk to the running session over D-Bus and ignore
+  `HOME`, so they affect the live desktop even inside a sandboxed test
+  environment. Prefer `distromod backup` before experimenting.
+- On window managers, `distromod` records the wallpaper it applied so it can
+  report the current value on later runs (the compositor itself does not store
+  it).
 
 ## License
 

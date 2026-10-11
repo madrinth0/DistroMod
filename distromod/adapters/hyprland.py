@@ -13,6 +13,7 @@ from typing import List
 
 from distromod.adapters.base import (
     DesktopAdapter,
+    FEATURE_COLOR_SCHEME,
     FEATURE_CURSOR_THEME,
     FEATURE_FONT,
     FEATURE_GTK_THEME,
@@ -47,6 +48,7 @@ class HyprlandAdapter(GtkSettingsMixin, DesktopAdapter):
             FEATURE_CURSOR_THEME,
             FEATURE_WALLPAPER,
             FEATURE_FONT,
+            FEATURE_COLOR_SCHEME,
         ]
 
     # -- wallpaper ------------------------------------------------------------

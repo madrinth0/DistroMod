@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from distromod.adapters.base import (
     DesktopAdapter,
+    FEATURE_CURSOR_SIZE,
     FEATURE_CURSOR_THEME,
     FEATURE_FONT,
     FEATURE_GTK_THEME,
@@ -41,6 +42,7 @@ class XfceAdapter(DesktopAdapter):
             FEATURE_GTK_THEME,
             FEATURE_ICON_THEME,
             FEATURE_CURSOR_THEME,
+            FEATURE_CURSOR_SIZE,
             FEATURE_WALLPAPER,
             FEATURE_FONT,
         ]
@@ -83,6 +85,17 @@ class XfceAdapter(DesktopAdapter):
 
     def set_cursor_theme(self, theme_name: str) -> None:
         self._set(XSETTINGS, "/Gtk/CursorThemeName", validate_theme_name(theme_name, "cursor theme"))
+
+    def get_cursor_size(self) -> int:
+        raw = self._get(XSETTINGS, "/Gtk/CursorThemeSize")
+        try:
+            return int(raw) if raw else 24
+        except ValueError:
+            return 24
+
+    def set_cursor_size(self, size: int) -> None:
+        size = validate_font_size(size, 16, 128)
+        self._set(XSETTINGS, "/Gtk/CursorThemeSize", str(size))
 
     def get_font(self) -> str:
         return self._get(XSETTINGS, "/Gtk/FontName") or "Unknown"

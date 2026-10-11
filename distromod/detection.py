@@ -6,13 +6,23 @@ import os
 from typing import List, Optional
 
 from distromod.adapters.base import DesktopAdapter
+from distromod.adapters.budgie import BudgieAdapter
 from distromod.adapters.cinnamon import CinnamonAdapter
+from distromod.adapters.cosmic import CosmicAdapter
+from distromod.adapters.deepin import DeepinAdapter
 from distromod.adapters.generic import GenericX11Adapter
 from distromod.adapters.gnome import GnomeAdapter
 from distromod.adapters.hyprland import HyprlandAdapter
+from distromod.adapters.i3 import I3Adapter
 from distromod.adapters.kde import KdeAdapter
+from distromod.adapters.lxde import LxdeAdapter
 from distromod.adapters.lxqt import LxqtAdapter
 from distromod.adapters.mate import MateAdapter
+from distromod.adapters.niri import NiriAdapter
+from distromod.adapters.openbox import OpenboxAdapter
+from distromod.adapters.pantheon import PantheonAdapter
+from distromod.adapters.sway import SwayAdapter
+from distromod.adapters.wayfire import WayfireAdapter
 from distromod.adapters.xfce import XfceAdapter
 from distromod.utils.logging import logger
 
@@ -22,15 +32,36 @@ class DesktopDetector:
 
     # Order matters: more specific environments first, generic last.
     ADAPTERS = [
+        CosmicAdapter,
+        DeepinAdapter,
+        BudgieAdapter,
+        PantheonAdapter,
         GnomeAdapter,
         KdeAdapter,
         HyprlandAdapter,
+        NiriAdapter,
+        SwayAdapter,
+        WayfireAdapter,
+        I3Adapter,
+        OpenboxAdapter,
+        LxdeAdapter,
         XfceAdapter,
         CinnamonAdapter,
         MateAdapter,
         LxqtAdapter,
         GenericX11Adapter,
     ]
+
+    #: Fallback probe: (environment variable, reported name).
+    _ENV_FALLBACKS = (
+        ("GNOME_SHELL_SESSION_MODE", "GNOME"),
+        ("KDE_FULL_SESSION", "KDE"),
+        ("KDE_SESSION_VERSION", "KDE"),
+        ("HYPRLAND_INSTANCE_SIGNATURE", "Hyprland"),
+        ("SWAYSOCK", "Sway"),
+        ("NIRI_SOCKET", "niri"),
+        ("I3SOCK", "i3"),
+    )
 
     def detect_environment(self) -> Optional[str]:
         """Return a human-readable desktop environment name.
@@ -50,12 +81,9 @@ class DesktopDetector:
             # DESKTOP_SESSION is sometimes a path (e.g. a .desktop file).
             return os.path.basename(desktop_session).removesuffix(".desktop")
 
-        if os.environ.get("GNOME_SHELL_SESSION_MODE"):
-            return "GNOME"
-        if os.environ.get("KDE_FULL_SESSION") or os.environ.get("KDE_SESSION_VERSION"):
-            return "KDE"
-        if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
-            return "Hyprland"
+        for variable, name in self._ENV_FALLBACKS:
+            if os.environ.get(variable):
+                return name
 
         return None
 
@@ -103,7 +131,38 @@ class DesktopDetector:
         """Return every adapter that reports itself available (debug aid)."""
         result: List[DesktopAdapter] = []
         for adapter_class in self.ADAPTERS:
-            adapter = adapter_class()
-            if adapter.is_available():
-                result.append(adapter)
+            try:
+                adapter = adapter_class()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("Could not instantiate %s: %s", adapter_class.__name__, exc)
+                continue
+            try:
+                if adapter.is_available():
+                    result.append(adapter)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("%s.is_available() raised: %s", adapter_class.__name__, exc)
         return result
+
+    def describe_adapters(self) -> List[dict]:
+        """Return diagnostic information about every known adapter.
+
+        Each entry contains the adapter name, display name, whether it is
+        available and (when available) its supported features.
+        """
+        results: List[dict] = []
+        for adapter_class in self.ADAPTERS:
+            entry = {
+                "name": getattr(adapter_class, "name", adapter_class.__name__),
+                "display_name": getattr(adapter_class, "display_name", adapter_class.__name__),
+                "available": False,
+                "features": [],
+            }
+            try:
+                adapter = adapter_class()
+                entry["available"] = bool(adapter.is_available())
+                if entry["available"]:
+                    entry["features"] = list(adapter.get_supported_features())
+            except Exception as exc:  # pragma: no cover - defensive
+                entry["error"] = str(exc)
+            results.append(entry)
+        return results

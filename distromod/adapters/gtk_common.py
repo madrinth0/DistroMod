@@ -9,7 +9,7 @@ shared by those adapters.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from distromod.utils.ini import read_value, set_value
 from distromod.utils.validation import validate_font_size, validate_theme_name
@@ -100,3 +100,25 @@ class GtkSettingsMixin:
 
     def get_font_config_file(self) -> str:
         return str(self.gtk_settings_path(3))
+
+    # -- colour scheme (GTK dark preference) ----------------------------------
+
+    _DARK_VALUES = ("1", "true", "yes", "on")
+
+    def get_color_scheme(self) -> str:
+        value = self._gtk_read("gtk-application-prefer-dark-theme")
+        if value is None:
+            return "Unknown"
+        return "prefer-dark" if value.strip().lower() in self._DARK_VALUES else "default"
+
+    def set_color_scheme(self, scheme: str) -> None:
+        dark = str(scheme).strip().lower() in (
+            "dark",
+            "prefer-dark",
+            "prefer_dark",
+            *self._DARK_VALUES,
+        )
+        self._gtk_write("gtk-application-prefer-dark-theme", "true" if dark else "false")
+
+    def list_color_schemes(self) -> List[str]:
+        return ["default", "prefer-dark", "prefer-light"]

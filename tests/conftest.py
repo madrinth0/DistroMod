@@ -30,11 +30,15 @@ def clean_desktop_env(monkeypatch):
     """Remove desktop/session related environment variables."""
     for var in (
         "XDG_CURRENT_DESKTOP",
+        "XDG_SESSION_DESKTOP",
         "DESKTOP_SESSION",
         "GNOME_SHELL_SESSION_MODE",
         "KDE_FULL_SESSION",
         "KDE_SESSION_VERSION",
         "HYPRLAND_INSTANCE_SIGNATURE",
+        "SWAYSOCK",
+        "NIRI_SOCKET",
+        "I3SOCK",
         "XDG_SESSION_TYPE",
         "WAYLAND_DISPLAY",
         "DISPLAY",

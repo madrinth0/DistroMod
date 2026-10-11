@@ -18,6 +18,7 @@ class DistroModCLI:
     def __init__(self) -> None:
         self._distromod: Optional[DistroMod] = None
         self._subparsers: Dict[str, argparse.ArgumentParser] = {}
+        self._subparsers_actions: Dict[str, argparse._SubParsersAction] = {}
 
     @property
     def distromod(self) -> DistroMod:
@@ -62,9 +63,14 @@ class DistroModCLI:
             epilog="""
 Examples:
   distromod status                    Show current desktop configuration
+  distromod status --json             Machine-readable status
+  distromod doctor                    Diagnose the environment and helper tools
   distromod gtk set Adwaita           Change GTK theme
   distromod icons list                List installed icon themes
   distromod cursor set breeze_cursors Change cursor theme
+  distromod cursor set breeze_cursors --size 48
+  distromod cursor size 48            Change only the cursor size
+  distromod qt set Kvantum            Change the Qt/Kvantum theme (KDE)
   distromod wallpaper set ~/bg.png    Set wallpaper
   distromod font set "Noto Sans" --size 11
   distromod color set BreezeDark      Set colour scheme
@@ -91,7 +97,19 @@ Examples:
         status_parser = subparsers.add_parser(
             "status", help="Show current desktop configuration"
         )
+        status_parser.add_argument(
+            "--json", action="store_true", help="Emit machine-readable JSON"
+        )
         status_parser.set_defaults(func=self.cmd_status)
+
+        # doctor
+        doctor_parser = subparsers.add_parser(
+            "doctor", help="Diagnose the environment and helper tools"
+        )
+        doctor_parser.add_argument(
+            "--json", action="store_true", help="Emit machine-readable JSON"
+        )
+        doctor_parser.set_defaults(func=self.cmd_doctor)
 
         # gtk
         self._subparsers["gtk"] = self._theme_command(
@@ -105,8 +123,24 @@ Examples:
         )
 
         # cursor
-        self._subparsers["cursor"] = self._theme_command(
-            subparsers, "cursor", "Manage cursor theme", "theme", self.cmd_cursor,
+        cursor_parser = self._theme_command(
+            subparsers, "cursor", "Manage cursor theme and size", "theme",
+            self.cmd_cursor, allow_list=True,
+        )
+        cursor_sub = self._subparsers_actions["cursor"]
+        cursor_set = cursor_sub.choices["set"]
+        cursor_set.add_argument(
+            "--size", type=int, help="Cursor size in pixels (16-128)"
+        )
+        cursor_size = cursor_sub.add_parser("size", help="Show or set the cursor size")
+        cursor_size.add_argument(
+            "value", nargs="?", type=int, help="New size in pixels (omit to show)"
+        )
+        self._subparsers["cursor"] = cursor_parser
+
+        # qt (Kvantum) theme
+        self._subparsers["qt"] = self._theme_command(
+            subparsers, "qt", "Manage the Qt/Kvantum theme", "theme", self.cmd_qt,
             allow_list=True,
         )
 
@@ -183,6 +217,7 @@ Examples:
         set_parser = sub.add_parser("set", help="Set the theme")
         set_parser.add_argument(arg_name, help="Theme name")
         parser.set_defaults(func=handler)
+        self._subparsers_actions[name] = sub
         return parser
 
     # -- helpers --------------------------------------------------------------
@@ -206,6 +241,14 @@ Examples:
     # -- commands -------------------------------------------------------------
 
     def cmd_status(self, args: argparse.Namespace) -> int:
+        if getattr(args, "json", False):
+            import json
+
+            data = self.distromod.status()
+            data["version"] = __version__
+            print(json.dumps(data, indent=2, sort_keys=True))
+            return 0 if data.get("adapter") else 1
+
         print("\n=== DistroMod Status ===")
         print(f"Version: {__version__}")
         print(f"\nDesktop Environment: {self.distromod.get_desktop_environment()}")
@@ -215,8 +258,9 @@ Examples:
         if not adapter:
             print("\nStatus: No supported desktop environment detected.")
             print(
-                "DistroMod works best with: GNOME, KDE Plasma, Hyprland, XFCE, "
-                "Cinnamon, MATE, or LXQt."
+                "DistroMod works best with: GNOME, KDE Plasma, COSMIC, Deepin, "
+                "Budgie, Pantheon, Hyprland, Sway, niri, Wayfire, i3, Openbox, "
+                "XFCE, Cinnamon, MATE, LXQt, LXDE, or a plain X11/Wayland session."
             )
             return 1
 
@@ -231,6 +275,35 @@ Examples:
             print("  (none)")
         for key, value in config.items():
             print(f"  {key}: {value}")
+
+        return 0
+
+    def cmd_doctor(self, args: argparse.Namespace) -> int:
+        import json
+
+        data = self.distromod.doctor()
+        if getattr(args, "json", False):
+            print(json.dumps(data, indent=2, sort_keys=True))
+            return 0
+
+        print("\n=== DistroMod Doctor ===")
+        print(f"Desktop Environment: {data['desktop_environment']}")
+        print(f"Desktop Session: {data['session']}")
+        print(f"XDG_CURRENT_DESKTOP: {data['xdg_current_desktop'] or '(unset)'}")
+        print(f"DESKTOP_SESSION: {data['desktop_session'] or '(unset)'}")
+        print(f"Selected Adapter: {data['adapter_name'] or '(none)'}")
+
+        print("\nHelper Tools:")
+        for tool, present in data["tools"].items():
+            print(f"  {'✓' if present else '✗'} {tool}")
+
+        print("\nKnown Adapters:")
+        for entry in data["adapters"]:
+            mark = "✓" if entry["available"] else "·"
+            detail = ""
+            if entry["available"] and entry["features"]:
+                detail = f" [{', '.join(entry['features'])}]"
+            print(f"  {mark} {entry['display_name']} ({entry['name']}){detail}")
 
         return 0
 
@@ -279,6 +352,20 @@ Examples:
     def cmd_cursor(self, args: argparse.Namespace) -> int:
         if self._sub_required("cursor", getattr(args, "cursor_command", None)):
             return 2
+
+        if args.cursor_command == "size":
+            adapter = self.distromod.get_adapter()
+            if not adapter or "cursor_size" not in adapter.get_supported_features():
+                print("Error: Cursor size customization not supported on this environment.")
+                return 1
+            if args.value is None:
+                print(f"Current Cursor Size: {self.distromod.get_cursor_size()}")
+                return 0
+            print(f"Setting cursor size to: {args.value}")
+            self.distromod.set_cursor_size(args.value)
+            print("✓ Cursor size updated successfully")
+            return 0
+
         if self._require_feature("cursor_theme", "Cursor theme customization not supported on this environment.") is None:
             return 1
 
@@ -292,8 +379,32 @@ Examples:
             return 0
         if args.cursor_command == "set":
             print(f"Setting cursor theme to: {args.theme}")
-            self.distromod.set_cursor_theme(args.theme)
+            self.distromod.set_cursor_theme(args.theme, getattr(args, "size", None))
             print("✓ Cursor theme updated successfully")
+            return 0
+        return 0
+
+    def cmd_qt(self, args: argparse.Namespace) -> int:
+        if self._sub_required("qt", getattr(args, "qt_command", None)):
+            return 2
+        if self._require_feature("qt_theme", "Qt/Kvantum theme customization not supported on this environment.") is None:
+            return 1
+
+        if args.qt_command == "list":
+            themes = self.distromod.list_qt_themes()
+            print("\nAvailable Qt/Kvantum Themes:")
+            for theme in themes:
+                print(f"  • {theme}")
+            if not themes:
+                print("  (none found)")
+            return 0
+        if args.qt_command == "current":
+            print(f"Current Qt/Kvantum Theme: {self.distromod.get_qt_theme()}")
+            return 0
+        if args.qt_command == "set":
+            print(f"Setting Qt/Kvantum theme to: {args.theme}")
+            self.distromod.set_qt_theme(args.theme)
+            print("✓ Qt/Kvantum theme updated successfully")
             return 0
         return 0
 

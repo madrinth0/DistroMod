@@ -10,10 +10,12 @@ from urllib.parse import unquote, urlparse
 from distromod.adapters.base import (
     DesktopAdapter,
     FEATURE_COLOR_SCHEME,
+    FEATURE_CURSOR_SIZE,
     FEATURE_CURSOR_THEME,
     FEATURE_FONT,
     FEATURE_GTK_THEME,
     FEATURE_ICON_THEME,
+    FEATURE_QT_THEME,
     FEATURE_WALLPAPER,
 )
 from distromod.adapters.gtk_common import GtkSettingsMixin
@@ -27,6 +29,7 @@ from distromod.utils.validation import validate_font_size, validate_theme_name
 KDEGLOBALS = xdg_config_home() / "kdeglobals"
 KCMINPUTRC = xdg_config_home() / "kcminputrc"
 PLASMA_APPLETSRC = xdg_config_home() / "plasma-org.kde.plasma.desktop-appletsrc"
+KVANTUM_CONFIG = xdg_config_home() / "Kvantum" / "kvantum.kvconfig"
 
 # KDE's font values look like ``Family,pointSize,-1,weight,italic,...``.
 _FONT_TEMPLATE = "{family},{size},-1,5,50,0,0,0,0,0"
@@ -55,9 +58,11 @@ class KdeAdapter(GtkSettingsMixin, DesktopAdapter):
             FEATURE_GTK_THEME,
             FEATURE_ICON_THEME,
             FEATURE_CURSOR_THEME,
+            FEATURE_CURSOR_SIZE,
             FEATURE_WALLPAPER,
             FEATURE_FONT,
             FEATURE_COLOR_SCHEME,
+            FEATURE_QT_THEME,
         ]
 
     # -- config files for backups --------------------------------------------
@@ -138,6 +143,19 @@ class KdeAdapter(GtkSettingsMixin, DesktopAdapter):
             except OSError:
                 continue
         return sorted(names)
+
+    # -- Qt / Kvantum theme ---------------------------------------------------
+
+    def get_qt_theme(self) -> str:
+        return read_value(KVANTUM_CONFIG, "General", "theme") or "Unknown"
+
+    def set_qt_theme(self, theme_name: str) -> None:
+        theme_name = validate_theme_name(theme_name, "Qt theme")
+        set_value(KVANTUM_CONFIG, "General", "theme", theme_name)
+        self.refresh()
+
+    def get_qt_config_file(self) -> str:
+        return str(KVANTUM_CONFIG)
 
     # -- fonts ----------------------------------------------------------------
 

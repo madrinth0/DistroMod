@@ -87,6 +87,15 @@ def list_cursor_themes() -> List[str]:
     return _unique_sorted(found)
 
 
+def list_qt_themes() -> List[str]:
+    """Return the names of installed Kvantum (Qt) themes."""
+    found: Set[str] = set()
+    for directory in (home() / ".local" / "share" / "Kvantum", Path("/usr/share/Kvantum")):
+        for theme in _subdirectories(directory):
+            found.add(theme.name)
+    return _unique_sorted(found)
+
+
 def list_fonts() -> List[str]:
     """Return the names of installed font families.
 

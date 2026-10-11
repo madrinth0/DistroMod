@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from distromod.utils.logging import logger
 from distromod.utils.paths import home, xdg_config_home
@@ -17,6 +17,8 @@ FEATURE_CURSOR_THEME = "cursor_theme"
 FEATURE_WALLPAPER = "wallpaper"
 FEATURE_FONT = "font"
 FEATURE_COLOR_SCHEME = "color_scheme"
+FEATURE_CURSOR_SIZE = "cursor_size"
+FEATURE_QT_THEME = "qt_theme"
 
 _ALL_FEATURES = (
     FEATURE_GTK_THEME,
@@ -25,6 +27,8 @@ _ALL_FEATURES = (
     FEATURE_WALLPAPER,
     FEATURE_FONT,
     FEATURE_COLOR_SCHEME,
+    FEATURE_CURSOR_SIZE,
+    FEATURE_QT_THEME,
 )
 
 
@@ -70,6 +74,8 @@ class DesktopAdapter(ABC):
             FEATURE_WALLPAPER: self.get_wallpaper,
             FEATURE_FONT: self.get_font,
             FEATURE_COLOR_SCHEME: self.get_color_scheme,
+            FEATURE_CURSOR_SIZE: self.get_cursor_size,
+            FEATURE_QT_THEME: self.get_qt_theme,
         }
         for feature in self.get_supported_features():
             getter = getters.get(feature)
@@ -164,6 +170,32 @@ class DesktopAdapter(ABC):
         """Return available colour scheme names (empty when unsupported)."""
         return []
 
+    def get_cursor_size(self) -> int:
+        """Return the cursor size in pixels."""
+        raise NotImplementedError("Cursor size not supported")
+
+    def set_cursor_size(self, size: int) -> None:
+        """Set the cursor size in pixels."""
+        raise NotImplementedError("Cursor size not supported")
+
+    def get_qt_theme(self) -> str:
+        """Return the Qt/Kvantum widget theme name."""
+        raise NotImplementedError("Qt theme not supported")
+
+    def set_qt_theme(self, theme_name: str) -> None:
+        """Set the Qt/Kvantum widget theme."""
+        raise NotImplementedError("Qt theme not supported")
+
+    def list_qt_themes(self) -> List[str]:
+        """Return available Qt/Kvantum theme names."""
+        from distromod.utils.desktop import list_qt_themes
+
+        return list_qt_themes()
+
+    def get_qt_config_file(self) -> str:
+        """Return a config file used for backups of the Qt theme."""
+        return str(self._gtk_settings_path(3))
+
     # -- preset application ---------------------------------------------------
 
     def apply_config(self, config: Dict[str, str]) -> None:
@@ -175,6 +207,10 @@ class DesktopAdapter(ABC):
         for key, value in config.items():
             if key in (FEATURE_COLOR_SCHEME,) and self.supports(FEATURE_COLOR_SCHEME):
                 self.set_color_scheme(str(value))
+            elif key == FEATURE_CURSOR_SIZE and self.supports(FEATURE_CURSOR_SIZE):
+                self.set_cursor_size(_coerce_int(value))
+            elif key == FEATURE_QT_THEME and self.supports(FEATURE_QT_THEME):
+                self.set_qt_theme(str(value))
             elif key == FEATURE_GTK_THEME and self.supports(FEATURE_GTK_THEME):
                 self.set_gtk_theme(str(value))
             elif key == FEATURE_ICON_THEME and self.supports(FEATURE_ICON_THEME):
@@ -200,3 +236,13 @@ class DesktopAdapter(ABC):
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<{type(self).__name__} name={self.name!r}>"
+
+
+def _coerce_int(value: Any) -> int:
+    """Coerce a preset value to an integer, with a clear error on failure."""
+    if isinstance(value, bool):
+        raise ValueError("Expected an integer, got a boolean")
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"Expected an integer, got {value!r}") from None

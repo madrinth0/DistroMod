@@ -1,12 +1,18 @@
 """Core DistroMod functionality."""
 
+import os
 from typing import Any, Dict, List, Optional
 
-from distromod.adapters.base import DesktopAdapter
+from distromod.adapters.base import (
+    DesktopAdapter,
+    FEATURE_CURSOR_SIZE,
+    FEATURE_QT_THEME,
+)
 from distromod.detection import DesktopDetector
 from distromod.backup import BackupManager
 from distromod.presets import PresetManager
 from distromod.utils.logging import logger
+from distromod.utils.paths import which
 from distromod.utils.validation import validate_font_size, validate_path, validate_theme_name
 
 
@@ -152,24 +158,72 @@ class DistroMod:
             return "Unknown"
         return adapter.get_cursor_theme()
 
-    def set_cursor_theme(self, theme_name: str) -> None:
-        """Set cursor theme.
+    def set_cursor_theme(self, theme_name: str, size: Optional[int] = None) -> None:
+        """Set cursor theme (and optionally its size).
 
         Args:
             theme_name: Name of theme to set
+            size: Optional cursor size in pixels
 
         Raises:
-            ValueError: If theme name is invalid
-            RuntimeError: If setting theme fails
+            ValueError: If theme name or size is invalid
+            RuntimeError: If setting theme fails or size is unsupported
         """
         validate_theme_name(theme_name)
+        size = validate_font_size(size, 16, 128)
         adapter = self.get_adapter()
         if not adapter:
             raise RuntimeError("No desktop adapter available")
-        
+        if size is not None and not adapter.supports(FEATURE_CURSOR_SIZE):
+            raise RuntimeError("Cursor size customization not supported on this environment.")
+
         self.backup_manager.create_backup([adapter.get_cursor_config_file()])
         adapter.set_cursor_theme(theme_name)
+        if size is not None:
+            adapter.set_cursor_size(size)
         logger.info(f"Cursor theme set to {theme_name}")
+
+    def get_cursor_size(self) -> int:
+        """Return the current cursor size in pixels."""
+        adapter = self.get_adapter()
+        if not adapter or not adapter.supports(FEATURE_CURSOR_SIZE):
+            raise RuntimeError("Cursor size customization not supported on this environment.")
+        return adapter.get_cursor_size()
+
+    def set_cursor_size(self, size: int) -> None:
+        """Set the cursor size in pixels."""
+        size = validate_font_size(size, 16, 128)
+        adapter = self.get_adapter()
+        if not adapter or not adapter.supports(FEATURE_CURSOR_SIZE):
+            raise RuntimeError("Cursor size customization not supported on this environment.")
+        adapter.set_cursor_size(size)
+        logger.info(f"Cursor size set to {size}")
+
+    # -- Qt / Kvantum theme ---------------------------------------------------
+
+    def list_qt_themes(self) -> List[str]:
+        """List available Qt/Kvantum themes."""
+        adapter = self.get_adapter()
+        if not adapter or not adapter.supports(FEATURE_QT_THEME):
+            return []
+        return adapter.list_qt_themes()
+
+    def get_qt_theme(self) -> str:
+        """Return the current Qt/Kvantum theme."""
+        adapter = self.get_adapter()
+        if not adapter or not adapter.supports(FEATURE_QT_THEME):
+            return "Unknown"
+        return adapter.get_qt_theme()
+
+    def set_qt_theme(self, theme_name: str) -> None:
+        """Set the Qt/Kvantum theme."""
+        theme_name = validate_theme_name(theme_name, "Qt theme")
+        adapter = self.get_adapter()
+        if not adapter or not adapter.supports(FEATURE_QT_THEME):
+            raise RuntimeError("Qt theme customization not supported on this environment.")
+        self.backup_manager.create_backup([adapter.get_qt_config_file()])
+        adapter.set_qt_theme(theme_name)
+        logger.info(f"Qt theme set to {theme_name}")
 
     def get_wallpaper(self) -> str:
         """Get current wallpaper.
@@ -334,6 +388,8 @@ class DistroMod:
             adapter.get_font_config_file(),
             adapter.get_wallpaper_config_file(),
         ]
+        if adapter.supports(FEATURE_QT_THEME):
+            config_files.append(adapter.get_qt_config_file())
         self.backup_manager.create_backup(config_files)
         
         adapter.apply_config(config)
@@ -371,3 +427,53 @@ class DistroMod:
         """
         self.backup_manager.delete_backup(backup_id)
         logger.info(f"Backup {backup_id} deleted")
+
+    # -- diagnostics ----------------------------------------------------------
+
+    def status(self) -> Dict[str, Any]:
+        """Return the current environment and configuration as a dictionary."""
+        adapter = self.get_adapter()
+        return {
+            "desktop_environment": self.get_desktop_environment(),
+            "session": self.get_session(),
+            "adapter": adapter.name if adapter else None,
+            "adapter_name": adapter.display_name if adapter else None,
+            "features": adapter.get_supported_features() if adapter else [],
+            "configuration": adapter.get_current_config() if adapter else {},
+        }
+
+    def doctor(self) -> Dict[str, Any]:
+        """Return diagnostic information about the environment and tools."""
+        tools = [
+            "gsettings",
+            "dconf",
+            "kwriteconfig6",
+            "kreadconfig6",
+            "plasma-apply-colorscheme",
+            "plasma-apply-wallpaperimage",
+            "xfconf-query",
+            "hyprctl",
+            "hyprpaper",
+            "swaymsg",
+            "swaybg",
+            "swww",
+            "niri",
+            "feh",
+            "nitrogen",
+            "xwallpaper",
+            "pcmanfm-qt",
+            "pcmanfm",
+            "cosmic-bg",
+            "fc-list",
+        ]
+        adapter = self.get_adapter()
+        return {
+            "desktop_environment": self.get_desktop_environment(),
+            "session": self.get_session(),
+            "xdg_current_desktop": os.environ.get("XDG_CURRENT_DESKTOP", ""),
+            "desktop_session": os.environ.get("DESKTOP_SESSION", ""),
+            "adapter": adapter.name if adapter else None,
+            "adapter_name": adapter.display_name if adapter else None,
+            "tools": {tool: bool(which(tool)) for tool in tools},
+            "adapters": self.detector.describe_adapters(),
+        }

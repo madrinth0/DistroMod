@@ -16,8 +16,10 @@ from distromod.adapters.base import (
     FEATURE_FONT,
     FEATURE_GTK_THEME,
     FEATURE_ICON_THEME,
+    FEATURE_WALLPAPER,
 )
 from distromod.adapters.gtk_common import GtkSettingsMixin
+from distromod.adapters.wallpaper_tools import WallpaperToolsMixin
 from distromod.utils.ini import read_value, set_value
 from distromod.utils.paths import xdg_config_home
 from distromod.utils.validation import validate_theme_name
@@ -25,7 +27,7 @@ from distromod.utils.validation import validate_theme_name
 LXQT_CONF = xdg_config_home() / "lxqt" / "lxqt.conf"
 
 
-class LxqtAdapter(GtkSettingsMixin, DesktopAdapter):
+class LxqtAdapter(WallpaperToolsMixin, GtkSettingsMixin, DesktopAdapter):
     """Adapter for the LXQt desktop."""
 
     name = "lxqt"
@@ -41,6 +43,7 @@ class LxqtAdapter(GtkSettingsMixin, DesktopAdapter):
             FEATURE_GTK_THEME,
             FEATURE_ICON_THEME,
             FEATURE_CURSOR_THEME,
+            FEATURE_WALLPAPER,
             FEATURE_FONT,
         ]
 
