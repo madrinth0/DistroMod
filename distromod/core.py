@@ -1,10 +1,5 @@
 """Core DistroMod functionality."""
 
-import json
-import os
-import shutil
-from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from distromod.adapters.base import DesktopAdapter
@@ -12,7 +7,7 @@ from distromod.detection import DesktopDetector
 from distromod.backup import BackupManager
 from distromod.presets import PresetManager
 from distromod.utils.logging import logger
-from distromod.utils.validation import validate_path, validate_theme_name
+from distromod.utils.validation import validate_font_size, validate_path, validate_theme_name
 
 
 class DistroMod:
@@ -197,7 +192,7 @@ class DistroMod:
             ValueError: If path is invalid or image doesn't exist
             RuntimeError: If setting wallpaper fails
         """
-        validate_path(path, must_exist=True)
+        path = validate_path(path, must_exist=True)
         adapter = self.get_adapter()
         if not adapter:
             raise RuntimeError("No desktop adapter available")
@@ -240,8 +235,7 @@ class DistroMod:
             RuntimeError: If setting font fails
         """
         validate_theme_name(font_name)
-        if size is not None and (size < 6 or size > 72):
-            raise ValueError("Font size must be between 6 and 72")
+        size = validate_font_size(size)
         
         adapter = self.get_adapter()
         if not adapter:
@@ -250,6 +244,37 @@ class DistroMod:
         self.backup_manager.create_backup([adapter.get_font_config_file()])
         adapter.set_font(font_name, size)
         logger.info(f"Font set to {font_name}")
+
+    def get_color_scheme(self) -> str:
+        """Get the current colour scheme."""
+        adapter = self.get_adapter()
+        if not adapter:
+            return "Unknown"
+        return adapter.get_color_scheme()
+
+    def set_color_scheme(self, scheme: str) -> None:
+        """Set the colour scheme.
+
+        Args:
+            scheme: Colour scheme name
+
+        Raises:
+            ValueError: If the name is invalid
+            RuntimeError: If no adapter is available or the change fails
+        """
+        scheme = validate_theme_name(scheme, "color scheme")
+        adapter = self.get_adapter()
+        if not adapter:
+            raise RuntimeError("No desktop adapter available")
+        adapter.set_color_scheme(scheme)
+        logger.info(f"Color scheme set to {scheme}")
+
+    def list_color_schemes(self) -> List[str]:
+        """List available colour schemes."""
+        adapter = self.get_adapter()
+        if not adapter:
+            return []
+        return adapter.list_color_schemes()
 
     def export_preset(self, output_path: str) -> None:
         """Export current configuration as preset.
@@ -260,7 +285,7 @@ class DistroMod:
         Raises:
             ValueError: If output path is invalid
         """
-        validate_path(output_path, must_exist=False)
+        output_path = validate_path(output_path, must_exist=False)
         adapter = self.get_adapter()
         if not adapter:
             raise RuntimeError("No desktop adapter available")
@@ -281,7 +306,7 @@ class DistroMod:
         Raises:
             ValueError: If preset file is invalid or malformed
         """
-        validate_path(input_path, must_exist=True)
+        input_path = validate_path(input_path, must_exist=True)
         return self.preset_manager.import_preset(input_path)
 
     def apply_preset(self, input_path: str) -> None:
@@ -294,7 +319,7 @@ class DistroMod:
             ValueError: If preset is invalid or incompatible
             RuntimeError: If applying preset fails
         """
-        validate_path(input_path, must_exist=True)
+        input_path = validate_path(input_path, must_exist=True)
         adapter = self.get_adapter()
         if not adapter:
             raise RuntimeError("No desktop adapter available")
@@ -306,6 +331,8 @@ class DistroMod:
             adapter.get_gtk_config_file(),
             adapter.get_icon_config_file(),
             adapter.get_cursor_config_file(),
+            adapter.get_font_config_file(),
+            adapter.get_wallpaper_config_file(),
         ]
         self.backup_manager.create_backup(config_files)
         
@@ -332,3 +359,15 @@ class DistroMod:
         """
         self.backup_manager.restore_backup(backup_id)
         logger.info(f"Backup {backup_id} restored")
+
+    def delete_backup(self, backup_id: str) -> None:
+        """Delete a backup by ID.
+
+        Args:
+            backup_id: ID of backup to delete
+
+        Raises:
+            ValueError: If backup ID is invalid or does not exist
+        """
+        self.backup_manager.delete_backup(backup_id)
+        logger.info(f"Backup {backup_id} deleted")

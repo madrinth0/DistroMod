@@ -1,49 +1,58 @@
-"""Desktop environment detection."""
+"""Desktop environment detection and adapter selection."""
+
+from __future__ import annotations
 
 import os
-from typing import Optional
+from typing import List, Optional
 
 from distromod.adapters.base import DesktopAdapter
-from distromod.adapters.gnome import GnomeAdapter
-from distromod.adapters.kde import KdeAdapter
-from distromod.adapters.hyprland import HyprlandAdapter
-from distromod.adapters.xfce import XfceAdapter
+from distromod.adapters.cinnamon import CinnamonAdapter
 from distromod.adapters.generic import GenericX11Adapter
+from distromod.adapters.gnome import GnomeAdapter
+from distromod.adapters.hyprland import HyprlandAdapter
+from distromod.adapters.kde import KdeAdapter
+from distromod.adapters.lxqt import LxqtAdapter
+from distromod.adapters.mate import MateAdapter
+from distromod.adapters.xfce import XfceAdapter
 from distromod.utils.logging import logger
 
 
 class DesktopDetector:
-    """Detect desktop environment and select appropriate adapter."""
+    """Detect the desktop environment and select an appropriate adapter."""
 
-    # Order matters: more specific environments first
+    # Order matters: more specific environments first, generic last.
     ADAPTERS = [
         GnomeAdapter,
         KdeAdapter,
         HyprlandAdapter,
         XfceAdapter,
+        CinnamonAdapter,
+        MateAdapter,
+        LxqtAdapter,
         GenericX11Adapter,
     ]
 
     def detect_environment(self) -> Optional[str]:
-        """Detect desktop environment name.
+        """Return a human-readable desktop environment name.
 
         Returns:
-            Desktop environment name or None if not detected
+            The desktop environment name, or ``None`` if it cannot be
+            determined.
         """
-        # Check XDG_CURRENT_DESKTOP
         xdg_desktop = os.environ.get("XDG_CURRENT_DESKTOP", "")
         if xdg_desktop:
-            return xdg_desktop.split(":")[0]
+            parts = [p for p in xdg_desktop.split(":") if p]
+            if parts:
+                return parts[0]
 
-        # Check DESKTOP_SESSION
         desktop_session = os.environ.get("DESKTOP_SESSION", "")
         if desktop_session and desktop_session != "default":
-            return desktop_session
+            # DESKTOP_SESSION is sometimes a path (e.g. a .desktop file).
+            return os.path.basename(desktop_session).removesuffix(".desktop")
 
-        # Check common variables
         if os.environ.get("GNOME_SHELL_SESSION_MODE"):
             return "GNOME"
-        if os.environ.get("KDE_SESSION_VERSION"):
+        if os.environ.get("KDE_FULL_SESSION") or os.environ.get("KDE_SESSION_VERSION"):
             return "KDE"
         if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
             return "Hyprland"
@@ -51,16 +60,11 @@ class DesktopDetector:
         return None
 
     def get_session_type(self) -> Optional[str]:
-        """Get session type (Wayland or X11).
-
-        Returns:
-            "wayland", "x11", or None if unknown
-        """
+        """Return the session type: ``"wayland"``, ``"x11"`` or ``None``."""
         session_type = os.environ.get("XDG_SESSION_TYPE", "").lower()
         if session_type in ("wayland", "x11"):
             return session_type
 
-        # Fallback detection
         if os.environ.get("WAYLAND_DISPLAY"):
             return "wayland"
         if os.environ.get("DISPLAY"):
@@ -69,20 +73,37 @@ class DesktopDetector:
         return None
 
     def get_adapter(self) -> Optional[DesktopAdapter]:
-        """Get appropriate adapter for detected environment.
+        """Return the most appropriate adapter for the current session.
 
-        Returns:
-            DesktopAdapter instance or None if no adapter supports this environment
+        Adapters are tried in order of specificity; the first one that reports
+        itself as available wins.
         """
         desktop = self.detect_environment()
-        logger.debug(f"Detected desktop environment: {desktop}")
+        logger.debug("Detected desktop environment: %s", desktop)
 
-        # Try each adapter in order of specificity
         for adapter_class in self.ADAPTERS:
-            adapter = adapter_class()
-            if adapter.is_available():
-                logger.info(f"Using adapter: {adapter.name}")
+            try:
+                adapter = adapter_class()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("Could not instantiate %s: %s", adapter_class.__name__, exc)
+                continue
+            try:
+                available = adapter.is_available()
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.debug("%s.is_available() raised: %s", adapter_class.__name__, exc)
+                continue
+            if available:
+                logger.info("Using adapter: %s", adapter.name)
                 return adapter
 
         logger.warning("No suitable desktop adapter found")
         return None
+
+    def available_adapters(self) -> List[DesktopAdapter]:
+        """Return every adapter that reports itself available (debug aid)."""
+        result: List[DesktopAdapter] = []
+        for adapter_class in self.ADAPTERS:
+            adapter = adapter_class()
+            if adapter.is_available():
+                result.append(adapter)
+        return result
