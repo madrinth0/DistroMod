@@ -456,7 +456,7 @@ class DistroMod:
             "hyprpaper",
             "swaymsg",
             "swaybg",
-            "swww",
+            "awww",
             "niri",
             "feh",
             "nitrogen",

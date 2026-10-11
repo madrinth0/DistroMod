@@ -2,7 +2,7 @@
 
 Full desktop environments expose a wallpaper API (Plasma script, GSettings,
 xfconf).  Tiling WMs and minimal sessions instead rely on external tools such as
-``swaybg``, ``swww``, ``feh`` or ``nitrogen``.  This module centralises that
+``swaybg``, ``awww``, ``feh`` or ``nitrogen``.  This module centralises that
 tool selection and the "last applied wallpaper" state used for read-back.
 """
 
@@ -43,8 +43,8 @@ def apply_wallpaper(path: str) -> Optional[str]:
             _kill_resident("swaybg")
             if spawn(["swaybg", "-i", path, "-m", "fill"]):
                 return "swaybg"
-        if which("swww") and ok(["swww", "img", path]):
-            return "swww"
+        if which("awww") and ok(["awww", "img", path]):
+            return "awww"
 
     candidates = [
         ["pcmanfm-qt", "--set-wallpaper", path],
@@ -63,8 +63,8 @@ def apply_wallpaper(path: str) -> Optional[str]:
         _kill_resident("swaybg")
         if spawn(["swaybg", "-i", path, "-m", "fill"]):
             return "swaybg"
-    if which("swww") and ok(["swww", "img", path]):
-        return "swww"
+    if which("awww") and ok(["awww", "img", path]):
+        return "awww"
     return None
 
 
@@ -104,7 +104,7 @@ class WallpaperToolsMixin:
         tool = apply_wallpaper(expanded)
         if tool is None:
             raise RuntimeError(
-                "No supported wallpaper tool found (tried swaybg, swww, pcmanfm, "
+                "No supported wallpaper tool found (tried swaybg, awww, pcmanfm, "
                 "feh, xwallpaper, nitrogen, hsetroot)"
             )
         logger.debug("Set wallpaper via %s", tool)

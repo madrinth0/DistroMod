@@ -1,6 +1,6 @@
 """Sway (and sway-compatible wlroots compositors) adapter.
 
-Sway has no wallpaper API of its own; ``swaybg`` (or ``swww``) is used.  GTK
+Sway has no wallpaper API of its own; ``swaybg`` (or ``awww``) is used.  GTK
 application appearance comes from the GTK ``settings.ini`` files.
 """
 

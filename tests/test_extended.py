@@ -165,6 +165,19 @@ def test_apply_wallpaper_spawns_swaybg_on_wayland(monkeypatch):
     assert spawned and spawned[0][0].endswith("swaybg")
 
 
+def test_apply_wallpaper_falls_back_to_awww(monkeypatch):
+    monkeypatch.setattr(wt, "is_wayland_session", lambda: True)
+    monkeypatch.setattr(
+        wt, "which", lambda name: "/usr/bin/awww" if name == "awww" else None
+    )
+    calls = []
+    monkeypatch.setattr(
+        wt, "ok", lambda cmd, timeout=15.0: calls.append(list(cmd)) or True
+    )
+    assert wt.apply_wallpaper("/tmp/opencode/wall.png") == "awww"
+    assert calls and calls[-1][:2] == ["awww", "img"]
+
+
 def test_wallpaper_state_roundtrip(tmp_home, monkeypatch):
     monkeypatch.setattr(wt, "apply_wallpaper", lambda path: "feh")
     adapter = GenericX11Adapter()

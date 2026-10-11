@@ -1,7 +1,7 @@
 """niri adapter.
 
 niri is a scrollable-tiling Wayland compositor.  It has no wallpaper facility,
-so ``swaybg`` / ``swww`` are used; GTK appearance is read from ``settings.ini``.
+so ``swaybg`` / ``awww`` are used; GTK appearance is read from ``settings.ini``.
 """
 
 from __future__ import annotations

@@ -35,7 +35,7 @@ backups so you can always roll back.
 - A supported desktop environment (or any X11/Wayland session)
 - Optional helper tools are used when present and gracefully skipped when not:
   `gsettings`/`dconf`, `xfconf-query`, `kwriteconfig6`/`kreadconfig6`,
-  `plasma-apply-*`, `hyprctl`/`hyprpaper`, `swaybg`/`swww`, `niri`,
+  `plasma-apply-*`, `hyprctl`/`hyprpaper`, `swaybg`/`awww`, `niri`,
   `cosmic-bg`, `pcmanfm`/`pcmanfm-qt`, `feh`, `xwallpaper`, `nitrogen`,
   `hsetroot`, `fc-list`. Run `distromod doctor` to see what is available.
 
@@ -169,8 +169,8 @@ written using the native mechanism for that environment:
 | XFCE | `xfconf-query` |
 | LXQt | `lxqt.conf` + GTK `settings.ini`, `pcmanfm-qt` wallpaper |
 | LXDE | GTK `settings.ini`, PCManFM wallpaper |
-| Hyprland | GTK `settings.ini`, `hyprpaper` / `swww` |
-| Sway / niri / Wayfire | GTK `settings.ini`, `swaybg` / `swww` / `wf-shell.ini` |
+| Hyprland | GTK `settings.ini`, `hyprpaper` / `awww` |
+| Sway / niri / Wayfire | GTK `settings.ini`, `swaybg` / `awww` / `wf-shell.ini` |
 | i3 / Openbox | GTK `settings.ini`, `feh` / `nitrogen` / `xwallpaper` |
 | Generic X11/Wayland | GTK `settings.ini`, common wallpaper tools |
 

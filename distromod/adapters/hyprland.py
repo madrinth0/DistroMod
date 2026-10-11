@@ -2,7 +2,7 @@
 
 Hyprland itself manages window rules and layout, while GTK app appearance (and
 cursors) is controlled through the GTK ``settings.ini`` files.  Wallpapers are
-handled by ``hyprpaper`` (preferred) or ``swww``.
+handled by ``hyprpaper`` (preferred) or ``awww``.
 """
 
 from __future__ import annotations
@@ -72,7 +72,7 @@ class HyprlandAdapter(GtkSettingsMixin, DesktopAdapter):
     def set_wallpaper(self, path: str) -> None:
         expanded = str(Path(path).expanduser())
 
-        if which("swww") and run(["swww", "img", expanded]).returncode == 0:
+        if which("awww") and run(["awww", "img", expanded]).returncode == 0:
             _remember(expanded)
             return
 
